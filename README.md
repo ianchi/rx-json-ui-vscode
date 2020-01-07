@@ -1,7 +1,3 @@
-# Language Features for JSON files
+# Language Features for rx-json-ui definition files files
 
-**Notice:** This extension is bundled with Visual Studio Code. It can be disabled but not uninstalled.
-
-## Features
-
-See [JSON in Visual Studio Code](https://code.visualstudio.com/docs/languages/json) to learn about the features of this extension.
+**Notice:** This extension is based on code from Language Features for JSON files Visual Studio Code.

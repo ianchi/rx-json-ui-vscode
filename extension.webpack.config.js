@@ -12,16 +12,15 @@ const path = require('path');
 var webpack = require('webpack');
 
 const config = withDefaults({
-	context: path.join(__dirname, 'client'),
-	entry: {
-		extension: './src/jsonMain.ts',
-	},
-	output: {
-		filename: 'jsonMain.js',
-		path: path.join(__dirname, 'client', 'dist')
-	}
+    context: path.join(__dirname),
+    entry: {
+        extension: './client/src/clientMain.ts',
+    },
+    output: {
+        filename: 'clientMain.js',
+        path: path.join(__dirname, 'client', 'dist'),
+    },
 });
-
 // add plugin, don't replace inherited
 config.plugins.push(new webpack.IgnorePlugin(/vertx/)); // request-light dependency
 

@@ -1,11 +1,10 @@
 {
-	"extends": "../shared.tsconfig.json",
-	"compilerOptions": {
-		"outDir": "./out",
-		"sourceMap": true,
-		"sourceRoot": "../src"
-	},
-	"include": [
-		"src/**/*"
-	]
+    "extends": "../shared.tsconfig.json",
+    "compilerOptions": {
+        "outDir": "./out",
+        "sourceMap": true,
+        "sourceRoot": "../src",
+        "allowJs": true
+    },
+    "include": ["src/**/*"]
 }
