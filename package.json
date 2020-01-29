@@ -3,6 +3,7 @@
     "displayName": "rx-json-ui-vscode",
     "description": "Adds expression validation to json schema",
     "publisher": "ianchi",
+    "repository": "https://github.com/ianchi/rx-json-ui-vscode.git",
     "author": {
         "name": "Adrian Panella",
         "email": "ianchi74@outlook.com"
@@ -36,7 +37,6 @@
         "@types/vscode": "^1.41.0",
         "copy-webpack-plugin": "^5.1.1",
         "merge-options": "^2.0.0",
-        "rx-json-ui-cli": "0.0.2",
         "ts-loader": "^6.2.1",
         "typescript": "^3.7.3",
         "webpack": "^4.41.4",
