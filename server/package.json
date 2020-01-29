@@ -1,24 +1,25 @@
 {
-    "name": "rx-json-ui-languageserver",
-    "description": "rx-json-ui language server",
-    "version": "0.0.1",
+    "name": "rx-json-ui-vscdoe",
+    "description": "rx-json-ui language services",
+    "version": "0.0.2",
     "author": "Adrian Panella",
+    "repository": "https://github.com/ianchi/rx-json-ui-vscode.git",
     "license": "MIT",
     "engines": {
         "node": "*"
     },
     "main": "./dist/jsonServerMain",
     "dependencies": {
-        "espression": "^1.3.1",
+        "espression": "^1.4.0",
         "jsonc-parser": "^2.2.0",
         "request-light": "^0.2.5",
-        "rx-json-ui-cli": "0.0.3",
+        "rx-json-ui-cli": "0.0.5",
         "vscode-json-languageservice": "github:ianchi/vscode-json-languageservice#v3.4.9-mod",
-        "vscode-languageserver": "^6.0.0-next.3",
+        "vscode-languageserver": "^6.1.0",
         "vscode-uri": "^2.1.1"
     },
     "devDependencies": {
-        "@types/node": "^12.11.7"
+        "@types/node": "^12.12.26"
     },
     "scripts": {
         "prepublishOnly": "npm run clean && npm run compile",

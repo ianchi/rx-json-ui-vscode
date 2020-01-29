@@ -7,7 +7,7 @@
         "name": "Adrian Panella",
         "email": "ianchi74@outlook.com"
     },
-    "version": "0.0.1",
+    "version": "0.0.2",
     "license": "MIT",
     "engines": {
         "vscode": "^1.41.0"
@@ -21,7 +21,8 @@
     "scripts": {
         "compile": "tsc -p client && tsc -p server",
         "build": "webpack --config extension.webpack.config.js && webpack --config server/extension.webpack.config.js",
-        "postinstall": "cd server && npm install"
+        "postinstall": "cd server && npm install",
+        "package": "vsce package"
     },
     "categories": [
         "Programming Languages"

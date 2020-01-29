@@ -6,3 +6,4 @@ dist/
 !.vscode/extensions.json
 out/
 node_modules/
+*.vsix
