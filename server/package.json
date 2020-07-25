@@ -10,16 +10,16 @@
     },
     "main": "./dist/jsonServerMain",
     "dependencies": {
-        "espression": "^1.5.0",
-        "jsonc-parser": "^2.2.1",
-        "request-light": "^0.2.5",
-        "rx-json-ui-cli": "0.0.8",
-        "vscode-json-languageservice": "github:ianchi/vscode-json-languageservice#v3.4.9-mod",
-        "vscode-languageserver": "^6.1.1",
-        "vscode-uri": "^2.1.1"
+        "espression": "^1.8.2",
+        "jsonc-parser": "^2.3.0",
+        "request-light": "^0.4.0",
+        "rx-json-ui-cli": "0.0.11",
+        "vscode-json-languageservice": "microsoft/vscode-json-languageservice",
+        "vscode-languageserver": "^7.0.0-next.3",
+        "vscode-uri": "^2.1.2"
     },
     "devDependencies": {
-        "@types/node": "^12.12.29"
+        "@types/node": "^12.12.52"
     },
     "scripts": {
         "prepublishOnly": "npm run clean && npm run compile",

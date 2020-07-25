@@ -8,10 +8,10 @@
         "name": "Adrian Panella",
         "email": "ianchi74@outlook.com"
     },
-    "version": "0.0.3",
+    "version": "0.0.4",
     "license": "MIT",
     "engines": {
-        "vscode": "^1.41.0"
+        "vscode": "^1.47.0"
     },
     "activationEvents": [
         "onLanguage:json",
@@ -29,17 +29,16 @@
         "Programming Languages"
     ],
     "dependencies": {
-        "request-light": "^0.2.5",
-        "vscode-languageclient": "^6.1.1"
+        "vscode-languageclient": "^7.0.0-next.5.1"
     },
     "devDependencies": {
-        "@types/node": "^12.12.29",
-        "@types/vscode": "^1.41.0",
-        "copy-webpack-plugin": "^5.1.1",
+        "@types/node": "^12.12.53",
+        "@types/vscode": "^1.47.0",
+        "copy-webpack-plugin": "^6.0.3",
         "merge-options": "^2.0.0",
-        "ts-loader": "^6.2.1",
-        "typescript": "^3.8.3",
-        "webpack": "^4.42.0",
-        "webpack-cli": "^3.3.11"
+        "ts-loader": "^8.0.1",
+        "typescript": "^3.9.7",
+        "webpack": "^4.44.0",
+        "webpack-cli": "^3.3.12"
     }
 }
