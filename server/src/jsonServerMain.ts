@@ -5,8 +5,6 @@
  *--------------------------------------------------------------------------------------------*/
 
 import {
-    createConnection,
-    IConnection,
     TextDocuments,
     InitializeParams,
     InitializeResult,
@@ -15,6 +13,7 @@ import {
     ServerCapabilities,
     TextDocumentSyncKind,
 } from 'vscode-languageserver';
+import { createConnection } from 'vscode-languageserver/node';
 
 import {
     xhr,
@@ -24,7 +23,6 @@ import {
 } from 'request-light';
 import * as fs from 'fs';
 import { URI } from 'vscode-uri';
-import * as URL from 'url';
 import { setTimeout, clearTimeout } from 'timers';
 import { formatError, runSafeAsync } from './utils/runner';
 import {
@@ -39,15 +37,22 @@ import {
 } from 'vscode-json-languageservice';
 import { getLanguageModelCache } from './languageModelCache';
 import { validateExpr, hoverData } from 'rx-json-ui-cli/languageservice';
+import { resolvePath } from './utils/requests';
 
 interface ISchemaAssociations {
     [pattern: string]: string[];
 }
 
+interface ISchemaAssociation {
+    fileMatch: string[];
+    uri: string;
+}
+
 namespace SchemaAssociationNotification {
-    export const type: NotificationType<ISchemaAssociations, any> = new NotificationType(
-        'json/schemaAssociations'
-    );
+    export const type: NotificationType<
+        ISchemaAssociations | ISchemaAssociation[],
+        any
+    > = new NotificationType('json/schemaAssociations');
 }
 
 namespace VSCodeContentRequest {
@@ -65,7 +70,7 @@ namespace ForceValidateRequest {
 }
 
 // Create a connection for the server
-const connection: IConnection = createConnection();
+const connection = createConnection();
 
 process.on('unhandledRejection', (e: any) => {
     console.error(formatError(`Unhandled exception`, e));
@@ -79,7 +84,8 @@ console.error = connection.console.error.bind(connection.console);
 
 const workspaceContext = {
     resolveRelativePath: (relativePath: string, resource: string) => {
-        return URL.resolve(resource, relativePath);
+        const base = resource.substr(0, resource.lastIndexOf('/') + 1);
+        return resolvePath(base, relativePath);
     },
 };
 
@@ -151,8 +157,7 @@ documents.listen(connection);
 // in the passed params the rootPath of the workspace plus the client capabilities.
 connection.onInitialize(
     (params: InitializeParams): InitializeResult => {
-        const handledProtocols =
-            params.initializationOptions && params.initializationOptions['handledSchemaProtocols'];
+        const handledProtocols = params.initializationOptions?.handledSchemaProtocols;
 
         languageService = getLanguageService({
             schemaRequestService: getSchemaRequestService(handledProtocols),
@@ -204,7 +209,7 @@ namespace LimitExceededWarnings {
 }
 
 let jsonConfigurationSettings: JSONSchemaSettings[] | undefined = undefined;
-let schemaAssociations: ISchemaAssociations | undefined = undefined;
+let schemaAssociations: ISchemaAssociations | ISchemaAssociation[] | undefined = undefined;
 
 // The settings have changed. Is send on server activation as well.
 connection.onDidChangeConfiguration(change => {
@@ -251,12 +256,16 @@ function updateConfiguration() {
         schemas: new Array<SchemaConfiguration>(),
     };
     if (schemaAssociations) {
-        for (const pattern in schemaAssociations) {
-            const association = schemaAssociations[pattern];
-            if (Array.isArray(association)) {
-                association.forEach(uri => {
-                    languageSettings.schemas.push({ uri, fileMatch: [pattern] });
-                });
+        if (Array.isArray(schemaAssociations)) {
+            Array.prototype.push.apply(languageSettings.schemas, schemaAssociations);
+        } else {
+            for (const pattern in schemaAssociations) {
+                const association = schemaAssociations[pattern];
+                if (Array.isArray(association)) {
+                    association.forEach(uri => {
+                        languageSettings.schemas.push({ uri, fileMatch: [pattern] });
+                    });
+                }
             }
         }
     }

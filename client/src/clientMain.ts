@@ -6,19 +6,16 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
-import { xhr, XHRResponse, getErrorStatusDescription } from 'request-light';
 
 import { workspace, ExtensionContext, extensions, Uri } from 'vscode';
 import {
-    LanguageClient,
     LanguageClientOptions,
     RequestType,
-    ServerOptions,
-    TransportKind,
     NotificationType,
     DidChangeConfigurationNotification,
     ResponseError,
 } from 'vscode-languageclient';
+import { LanguageClient, ServerOptions, TransportKind } from 'vscode-languageclient/node';
 
 import { hash } from './utils/hash';
 
@@ -34,8 +31,13 @@ export interface ISchemaAssociations {
     [pattern: string]: string[];
 }
 
+export interface ISchemaAssociation {
+    fileMatch: string[];
+    uri: string;
+}
+
 namespace SchemaAssociationNotification {
-    export const type: NotificationType<ISchemaAssociations, any> = new NotificationType(
+    export const type: NotificationType<ISchemaAssociation[], any> = new NotificationType(
         'json/schemaAssociations'
     );
 }
@@ -80,7 +82,7 @@ export function activate(context: ExtensionContext) {
     };
 
     // Options to control the language client
-    let clientOptions: LanguageClientOptions = {
+    const clientOptions: LanguageClientOptions = {
         // Register the server for json documents
         documentSelector: ['json', 'jsonc'],
         initializationOptions: {
@@ -103,23 +105,25 @@ export function activate(context: ExtensionContext) {
     };
 
     // Create the language client and start the client.
-    let client = new LanguageClient(
+    const client = new LanguageClient(
         'json',
         'rx-json-ui Language Server',
         serverOptions,
-        clientOptions,
-        true
+        clientOptions
     );
     client.registerProposedFeatures();
 
-    let disposable = client.start();
+    const disposable = client.start();
     toDispose.push(disposable);
     client.onReady().then(() => {
         const schemaDocuments: { [uri: string]: boolean } = {};
 
         // handle content request
         client.onRequest(VSCodeContentRequest.type, (uriPath: string) => {
-            let uri = Uri.parse(uriPath);
+            const uri = Uri.parse(uriPath);
+            if (uri.scheme === 'untitled') {
+                return Promise.reject(new ResponseError(3, `Unable to load ${uri.toString()}`));
+            }
             if (uri.scheme !== 'http' && uri.scheme !== 'https') {
                 return workspace.openTextDocument(uri).then(
                     doc => {
@@ -127,32 +131,15 @@ export function activate(context: ExtensionContext) {
                         return doc.getText();
                     },
                     error => {
-                        return Promise.reject(error);
+                        return Promise.reject(new ResponseError(2, error.toString()));
                     }
                 );
             } else {
-                const headers = { 'Accept-Encoding': 'gzip, deflate' };
-                return xhr({ url: uriPath, followRedirects: 5, headers }).then(
-                    response => {
-                        return response.responseText;
-                    },
-                    (error: XHRResponse) => {
-                        let extraInfo = error.responseText || error.toString();
-                        if (extraInfo.length > 256) {
-                            extraInfo = `${extraInfo.substr(0, 256)}...`;
-                        }
-                        return Promise.reject(
-                            new ResponseError(
-                                error.status,
-                                getErrorStatusDescription(error.status) + '\n' + extraInfo
-                            )
-                        );
-                    }
-                );
+                return Promise.reject(new ResponseError(1, 'Downloading schemas is not supported'));
             }
         });
 
-        let handleContentChange = (uriString: string) => {
+        const handleContentChange = (uriString: string) => {
             if (schemaDocuments[uriString]) {
                 client.sendNotification(SchemaContentChangeNotification.type, uriString);
                 return true;
@@ -172,43 +159,75 @@ export function activate(context: ExtensionContext) {
             })
         );
 
-        client.sendNotification(SchemaAssociationNotification.type, getSchemaAssociation(context));
+        client.sendNotification(SchemaAssociationNotification.type, getSchemaAssociations(context));
 
         extensions.onDidChange(_ => {
             client.sendNotification(
                 SchemaAssociationNotification.type,
-                getSchemaAssociation(context)
+                getSchemaAssociations(context)
             );
         });
     });
 }
 
-function getSchemaAssociation(_context: ExtensionContext): ISchemaAssociations {
-    let associations: ISchemaAssociations = {};
+export function joinPath(uri: Uri, ...paths: string[]): Uri {
+    const parts = uri.path.split('/');
+    for (let path of paths) {
+        parts.push(...path.split('/'));
+    }
+    return uri.with({ path: normalizePath(parts) });
+}
+
+export function normalizePath(parts: string[]): string {
+    const Dot = '.'.charCodeAt(0);
+    const newParts: string[] = [];
+    for (const part of parts) {
+        if (part.length === 0 || (part.length === 1 && part.charCodeAt(0) === Dot)) {
+            // ignore
+        } else if (part.length === 2 && part.charCodeAt(0) === Dot && part.charCodeAt(1) === Dot) {
+            newParts.pop();
+        } else {
+            newParts.push(part);
+        }
+    }
+    if (parts.length > 1 && parts[parts.length - 1].length === 0) {
+        newParts.push('');
+    }
+    let res = newParts.join('/');
+    if (parts[0].length === 0) {
+        res = '/' + res;
+    }
+    return res;
+}
+
+function getSchemaAssociations(_context: ExtensionContext): ISchemaAssociation[] {
+    const associations: ISchemaAssociation[] = [];
     extensions.all.forEach(extension => {
-        let packageJSON = extension.packageJSON;
+        const packageJSON = extension.packageJSON;
         if (packageJSON && packageJSON.contributes && packageJSON.contributes.jsonValidation) {
-            let jsonValidation = packageJSON.contributes.jsonValidation;
+            const jsonValidation = packageJSON.contributes.jsonValidation;
             if (Array.isArray(jsonValidation)) {
                 jsonValidation.forEach(jv => {
                     let { fileMatch, url } = jv;
-                    if (fileMatch && url) {
-                        if (url[0] === '.' && url[1] === '/') {
-                            url = Uri.file(path.join(extension.extensionPath, url)).toString();
+                    if (typeof fileMatch === 'string') {
+                        fileMatch = [fileMatch];
+                    }
+                    if (Array.isArray(fileMatch) && typeof url === 'string') {
+                        let uri: string = url;
+                        if (uri[0] === '.' && uri[1] === '/') {
+                            uri = joinPath(extension.extensionUri, uri).toString();
                         }
-                        if (fileMatch[0] === '%') {
-                            fileMatch = fileMatch.replace(/%APP_SETTINGS_HOME%/, '/User');
-                            fileMatch = fileMatch.replace(/%MACHINE_SETTINGS_HOME%/, '/Machine');
-                            fileMatch = fileMatch.replace(/%APP_WORKSPACES_HOME%/, '/Workspaces');
-                        } else if (fileMatch.charAt(0) !== '/' && !fileMatch.match(/\w+:\/\//)) {
-                            fileMatch = '/' + fileMatch;
-                        }
-                        let association = associations[fileMatch];
-                        if (!association) {
-                            association = [];
-                            associations[fileMatch] = association;
-                        }
-                        association.push(url);
+                        fileMatch = fileMatch.map(fm => {
+                            if (fm[0] === '%') {
+                                fm = fm.replace(/%APP_SETTINGS_HOME%/, '/User');
+                                fm = fm.replace(/%MACHINE_SETTINGS_HOME%/, '/Machine');
+                                fm = fm.replace(/%APP_WORKSPACES_HOME%/, '/Workspaces');
+                            } else if (!fm.match(/^(\w+:\/\/|\/|!)/)) {
+                                fm = '/' + fm;
+                            }
+                            return fm;
+                        });
+                        associations.push({ fileMatch, uri });
                     }
                 });
             }
@@ -218,14 +237,14 @@ function getSchemaAssociation(_context: ExtensionContext): ISchemaAssociations {
 }
 
 function getSettings(): Settings {
-    let httpSettings = workspace.getConfiguration('http');
+    const httpSettings = workspace.getConfiguration('http');
 
-    let resultLimit: number =
+    const resultLimit: number =
         Math.trunc(
             Math.max(0, Number(workspace.getConfiguration().get('json.maxItemsComputed')))
         ) || 5000;
 
-    let settings: Settings = {
+    const settings: Settings = {
         http: {
             proxy: httpSettings.get('proxy'),
             proxyStrictSSL: httpSettings.get('proxyStrictSSL'),
@@ -235,14 +254,21 @@ function getSettings(): Settings {
             resultLimit,
         },
     };
-    let schemaSettingsById: { [schemaId: string]: JSONSchemaSettings } = Object.create(null);
-    let collectSchemaSettings = (
+    const schemaSettingsById: { [schemaId: string]: JSONSchemaSettings } = Object.create(null);
+    const collectSchemaSettings = (
         schemaSettings: JSONSchemaSettings[],
-        rootPath?: string,
-        fileMatchPrefix?: string
+        folderUri?: Uri,
+        isMultiRoot?: boolean
     ) => {
-        for (let setting of schemaSettings) {
-            let url = getSchemaId(setting, rootPath);
+        let fileMatchPrefix: string | undefined = undefined;
+        if (folderUri && isMultiRoot) {
+            fileMatchPrefix = folderUri.toString();
+            if (fileMatchPrefix[fileMatchPrefix.length - 1] === '/') {
+                fileMatchPrefix = fileMatchPrefix.substr(0, fileMatchPrefix.length - 1);
+            }
+        }
+        for (const setting of schemaSettings) {
+            const url = getSchemaId(setting, folderUri);
             if (!url) {
                 continue;
             }
@@ -251,59 +277,69 @@ function getSettings(): Settings {
                 schemaSetting = schemaSettingsById[url] = { url, fileMatch: [] };
                 settings.json!.schemas!.push(schemaSetting);
             }
-            let fileMatches = setting.fileMatch;
-            let resultingFileMatches = schemaSetting.fileMatch!;
+            const fileMatches = setting.fileMatch;
             if (Array.isArray(fileMatches)) {
-                if (fileMatchPrefix) {
-                    for (let fileMatch of fileMatches) {
-                        if (fileMatch[0] === '/') {
-                            resultingFileMatches.push(fileMatchPrefix + fileMatch);
-                            resultingFileMatches.push(fileMatchPrefix + '/*' + fileMatch);
-                        } else {
-                            resultingFileMatches.push(fileMatchPrefix + '/' + fileMatch);
-                            resultingFileMatches.push(fileMatchPrefix + '/*/' + fileMatch);
-                        }
+                const resultingFileMatches = schemaSetting.fileMatch || [];
+                schemaSetting.fileMatch = resultingFileMatches;
+                const addMatch = (pattern: string) => {
+                    //  filter duplicates
+                    if (resultingFileMatches.indexOf(pattern) === -1) {
+                        resultingFileMatches.push(pattern);
                     }
-                } else {
-                    resultingFileMatches.push(...fileMatches);
+                };
+                for (const fileMatch of fileMatches) {
+                    if (fileMatchPrefix) {
+                        if (fileMatch[0] === '/') {
+                            addMatch(fileMatchPrefix + fileMatch);
+                            addMatch(fileMatchPrefix + '/*' + fileMatch);
+                        } else {
+                            addMatch(fileMatchPrefix + '/' + fileMatch);
+                            addMatch(fileMatchPrefix + '/*/' + fileMatch);
+                        }
+                    } else {
+                        addMatch(fileMatch);
+                    }
                 }
             }
-            if (setting.schema) {
+            if (setting.schema && !schemaSetting.schema) {
                 schemaSetting.schema = setting.schema;
             }
         }
     };
 
+    const folders = workspace.workspaceFolders;
+
     // merge global and folder settings. Qualify all file matches with the folder path.
-    let globalSettings = workspace
+    const globalSettings = workspace
         .getConfiguration('json', null)
         .get<JSONSchemaSettings[]>('schemas');
     if (Array.isArray(globalSettings)) {
-        collectSchemaSettings(globalSettings, workspace.rootPath);
+        if (!folders) {
+            collectSchemaSettings(globalSettings);
+        }
     }
-    let folders = workspace.workspaceFolders;
     if (folders) {
-        for (let folder of folders) {
-            let folderUri = folder.uri;
+        const isMultiRoot = folders.length > 1;
+        for (const folder of folders) {
+            const folderUri = folder.uri;
 
-            let schemaConfigInfo = workspace
+            const schemaConfigInfo = workspace
                 .getConfiguration('json', folderUri)
                 .inspect<JSONSchemaSettings[]>('schemas');
 
-            let folderSchemas = schemaConfigInfo!.workspaceFolderValue;
+            const folderSchemas = schemaConfigInfo!.workspaceFolderValue;
             if (Array.isArray(folderSchemas)) {
-                let folderPath = folderUri.toString();
-                if (folderPath[folderPath.length - 1] === '/') {
-                    folderPath = folderPath.substr(0, folderPath.length - 1);
-                }
-                collectSchemaSettings(folderSchemas, folderUri.fsPath, folderPath);
+                collectSchemaSettings(folderSchemas, folderUri, isMultiRoot);
+            }
+            if (Array.isArray(globalSettings)) {
+                collectSchemaSettings(globalSettings, folderUri, isMultiRoot);
             }
         }
     }
     return settings;
 }
 
-function getSchemaId(schema: JSONSchemaSettings, rootPath?: string) {
+function getSchemaId(schema: JSONSchemaSettings, folderUri?: Uri): string | undefined {
     let url = schema.url;
     if (!url) {
         if (schema.schema) {
@@ -311,8 +347,8 @@ function getSchemaId(schema: JSONSchemaSettings, rootPath?: string) {
                 schema.schema.id ||
                 `vscode://schemas/custom/${encodeURIComponent(hash(schema.schema).toString(16))}`;
         }
-    } else if (rootPath && (url[0] === '.' || url[0] === '/')) {
-        url = Uri.file(path.normalize(path.join(rootPath, url))).toString();
+    } else if (folderUri && (url[0] === '.' || url[0] === '/')) {
+        url = joinPath(folderUri, url).toString();
     }
     return url;
 }
