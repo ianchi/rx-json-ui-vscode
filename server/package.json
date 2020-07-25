@@ -1,7 +1,7 @@
 {
     "name": "rx-json-ui-vscdoe",
     "description": "rx-json-ui language services",
-    "version": "0.0.3",
+    "version": "0.0.5",
     "author": "Adrian Panella",
     "repository": "https://github.com/ianchi/rx-json-ui-vscode.git",
     "license": "MIT",
