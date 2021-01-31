@@ -20,11 +20,11 @@ import { LanguageClient, ServerOptions, TransportKind } from 'vscode-languagecli
 import { hash } from './utils/hash';
 
 namespace VSCodeContentRequest {
-    export const type: RequestType<string, string, any, any> = new RequestType('vscode/content');
+    export const type: RequestType<string, string, any> = new RequestType('vscode/content');
 }
 
 namespace SchemaContentChangeNotification {
-    export const type: NotificationType<string, any> = new NotificationType('json/schemaContent');
+    export const type: NotificationType<string> = new NotificationType('json/schemaContent');
 }
 
 export interface ISchemaAssociations {
@@ -37,9 +37,9 @@ export interface ISchemaAssociation {
 }
 
 namespace SchemaAssociationNotification {
-    export const type: NotificationType<ISchemaAssociation[], any> = new NotificationType(
-        'json/schemaAssociations'
-    );
+    export const type: NotificationType<
+        ISchemaAssociations | ISchemaAssociation[]
+    > = new NotificationType('json/schemaAssociations');
 }
 
 interface Settings {

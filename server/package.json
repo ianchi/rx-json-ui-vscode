@@ -1,5 +1,5 @@
 {
-    "name": "rx-json-ui-vscdoe",
+    "name": "rx-json-ui-vscode",
     "description": "rx-json-ui language services",
     "version": "0.0.5",
     "author": "Adrian Panella",
@@ -10,13 +10,13 @@
     },
     "main": "./dist/jsonServerMain",
     "dependencies": {
-        "espression": "^1.8.2",
-        "jsonc-parser": "^2.3.0",
+        "espression": "^1.8.3",
+        "jsonc-parser": "^3.0.0",
         "request-light": "^0.4.0",
-        "rx-json-ui-cli": "0.0.11",
-        "vscode-json-languageservice": "microsoft/vscode-json-languageservice",
-        "vscode-languageserver": "^7.0.0-next.3",
-        "vscode-uri": "^2.1.2"
+        "rx-json-ui-cli": "0.0.14",
+        "vscode-json-languageservice": "^4.0.2",
+        "vscode-languageserver": "^7.0.0",
+        "vscode-uri": "^3.0.2"
     },
     "devDependencies": {
         "@types/node": "^12.12.52"
