@@ -8,7 +8,7 @@
         "name": "Adrian Panella",
         "email": "ianchi74@outlook.com"
     },
-    "version": "0.0.5",
+    "version": "0.0.6",
     "license": "MIT",
     "engines": {
         "vscode": "^1.52.0"
